@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 雙模型圓桌對談系統 (Gemini x ChatGPT)</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- 引入 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* 莫蘭迪明亮溫潤色系 (Morandi Palette) */
+        body {
+            background-color: #eef1ed; /* 溫潤灰綠基調 */
+            color: #3e4a43;
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #dce2dc; }
+        ::-webkit-scrollbar-thumb { background: #b8c5b9; border-radius: 3px; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.95); }
+        }
+        .pulse-fast { animation: pulseGlow 1.2s infinite ease-in-out; }
+
+        .morandi-card {
+            background-color: #f4f6f4;
+            border: 1px solid #c2ccc0;
+        }
+
+        /* 專屬字體與色彩風格設定 */
+        .gemini-bubble-text {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            color: #1a365d;
+            letter-spacing: -0.01em;
+        }
+        .gpt-bubble-text {
+            font-family: "Georgia", Cambria, "Times New Roman", Times, serif;
+            color: #1c3b2b;
+            letter-spacing: 0.01em;
+        }
+
+        /* 總結重點高亮：紅字粗體與螢光底色 */
+        .summary-highlight {
+            color: #b93838 !important;
+            font-weight: 700 !important;
+            background-color: rgba(185, 56, 56, 0.1);
+            padding: 0.1em 0.35em;
+            border-radius: 0.25rem;
+            border-bottom: 2px solid rgba(185, 56, 56, 0.3);
+        }
+        .summary-fluorescent {
+            background-color: rgba(224, 180, 74, 0.25);
+            color: #634710;
+            font-weight: 600;
+            padding: 0.1em 0.35em;
+            border-radius: 0.25rem;
+        }
+
+        .prose-content p { margin-bottom: 0.75rem; }
+        .prose-content p:last-child { margin-bottom: 0; }
+        .prose-content ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+        .prose-content ol { list-style-type: decimal; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+        .prose-content strong { font-weight: 700; color: #111827; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-stone-700">
+
+    <!-- 頂部黏性導覽列與參數設定 -->
+    <header class="sticky top-0 z-40 bg-[#e4e8e3]/95 backdrop-blur-md border-b border-[#c8d2c7] px-3 sm:px-6 py-2.5 shadow-xs">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            
+            <!-- 左側標題與歷史按鈕 -->
+            <div class="flex items-center justify-between w-full sm:w-auto gap-2">
+                <div class="flex items-center gap-2.5">
+                    <button onclick="toggleHistorySidebar()" class="w-8 h-8 rounded-xl bg-[#d4dad3] hover:bg-[#c4ccc3] text-stone-700 border border-[#b8c5b9] flex items-center justify-center transition" title="歷史對話紀錄">
+                        <i class="fa-solid fa-clock-rotate-left text-xs"></i>
+                    </button>
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#4a6b63] to-[#8c6d53] flex items-center justify-center font-bold text-white text-xs shadow-xs">
+                        AI
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-xs sm:text-sm leading-tight text-stone-900">
+                            Gemini <span class="text-stone-400">×</span> ChatGPT
+                        </h1>
+                        <span id="apiModeText" class="text-[10px] text-[#3f635a] font-medium">免金鑰智慧引擎</span>
+                    </div>
+                </div>
+
+                <button onclick="toggleApiModal()" class="text-[11px] px-2.5 py-1 rounded-lg bg-[#d4dad3] text-stone-700 border border-[#b8c5b9] sm:hidden font-medium">
+                    🔑 API
+                </button>
+            </div>
+
+            <!-- 中間：極致精簡的黏性設定列 (確保不佔版面) -->
+            <div class="flex flex-wrap items-center justify-center gap-1.5 bg-[#d8dfd6]/90 border border-[#c2ccc1] rounded-xl px-2 py-1 w-full sm:w-auto">
+                <!-- Gemini 選擇 -->
+                <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-[#2c4e6e] font-bold">Gemini:</span>
+                    <select id="geminiModelSelect" onchange="updateModelBadges()" class="bg-[#f2f4f1] border border-[#b8c5b9] rounded px-1.5 py-0.5 text-[11px] text-stone-800 focus:outline-none font-medium">
+                        <option value="gemini-2.5-flash">2.5 Flash (高CP)</option>
+                        <option value="gemini-2.5-flash-lite">Flash-Lite (極省)</option>
+                        <option value="gemini-2.5-pro">2.5 Pro (深度)</option>
+                    </select>
+                </div>
+
+                <span class="text-stone-400">|</span>
+
+                <!-- ChatGPT 選擇 -->
+                <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-[#234d3b] font-bold">GPT:</span>
+                    <select id="gptModelSelect" onchange="updateModelBadges()" class="bg-[#f2f4f1] border border-[#b8c5b9] rounded px-1.5 py-0.5 text-[11px] text-stone-800 focus:outline-none font-medium">
+                        <option value="gpt-4o-mini">4o-mini (高CP)</option>
+                        <option value="o3-mini">o3-mini (推理)</option>
+                        <option value="gpt-4o">4o (旗艦)</option>
+                        <option value="o1">o1 (重度)</option>
+                    </select>
+                </div>
+
+                <span class="text-stone-400">|</span>
+
+                <!-- 回合數 -->
+                <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-[#634e2c] font-bold">回合:</span>
+                    <select id="turnSelect" class="bg-[#f2f4f1] border border-[#b8c5b9] rounded px-1.5 py-0.5 text-[11px] text-stone-800 font-bold">
+                        <option value="3">3回</option>
+                        <option value="4" selected>4回</option>
+                        <option value="5">5回</option>
+                        <option value="6">6回</option>
+                    </select>
+                </div>
+
+                <!-- 風格 -->
+                <select id="debateStyleSelect" class="bg-[#f2f4f1] border border-[#b8c5b9] rounded px-1.5 py-0.5 text-[11px] text-stone-800 hidden md:inline-block font-medium">
+                    <option value="collaborative">🤝 互補協作</option>
+                    <option value="critical">⚔️ 批判思辯</option>
+                    <option value="creative">💡 腦力激盪</option>
+                    <option value="practical">🛠️ 實戰落地</option>
+                </select>
+            </div>
+
+            <!-- 右側 API 按鈕 (桌面版) -->
+            <div class="hidden sm:flex items-center gap-2">
+                <button onclick="toggleHistorySidebar()" class="text-xs px-3 py-1.5 rounded-xl bg-[#d4dad3] hover:bg-[#c4ccc3] text-stone-700 border border-[#b8c5b9] transition font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 歷史紀錄
+                </button>
+                <button onclick="toggleApiModal()" class="text-xs px-3 py-1.5 rounded-xl bg-[#d4dad3] hover:bg-[#c4ccc3] text-stone-700 border border-[#b8c5b9] transition font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-key"></i> API
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 歷史紀錄側邊欄 (預設隱藏，點擊左上角滑出) -->
+    <div id="historySidebar" class="fixed inset-y-0 left-0 z-50 w-80 bg-[#e4e8e3] border-r border-[#c8d2c7] shadow-2xl p-4 flex flex-col transform -translate-x-full transition-transform duration-300">
+        <div class="flex items-center justify-between border-b border-[#c8d2c7] pb-3 mb-3">
+            <h3 class="font-bold text-sm text-stone-900 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-[#4a6b63]"></i>
+                <span>歷史對話紀錄</span>
+            </h3>
+            <div class="flex items-center gap-2">
+                <button onclick="clearAllHistory()" class="text-xs text-rose-700 hover:text-rose-900 px-2 py-0.5 rounded bg-[#d4dad3]">清空</button>
+                <button onclick="toggleHistorySidebar()" class="text-stone-500 hover:text-stone-900 text-base font-bold">✕</button>
+            </div>
+        </div>
+        <div id="historyListContainer" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+            <div class="text-center text-stone-500 text-xs py-8">尚無歷史紀錄</div>
+        </div>
+    </div>
+
+    <!-- 主容器：寬版流暢自適應 -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 flex flex-col gap-4">
+
+        <!-- 初始提問方框 -->
+        <section class="morandi-card rounded-2xl p-4 sm:p-5 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+                <label for="topicInput" class="text-sm font-bold text-stone-900 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-[#52685e] text-white flex items-center justify-center text-xs">👤</span>
+                    <span>請輸入您的問題（可附帶圖片或檔案）：</span>
+                </label>
+                <div class="flex items-center gap-2">
+                    <button onclick="resetAllSession()" id="resetAllBtn" class="hidden text-xs px-2.5 py-1 rounded-lg bg-[#f4f6f4] hover:bg-rose-50 text-rose-700 border border-rose-200 transition font-medium">
+                        🗑️ 開啟全新話題
+                    </button>
+                    <button onclick="insertRandomQuestion()" class="text-xs text-stone-600 hover:text-stone-900 font-medium flex items-center gap-1">
+                        🎲 隨機範例
+                    </button>
+                </div>
+            </div>
+
+            <textarea id="topicInput" rows="2" placeholder="輸入任何問題，或上傳圖片/檔案讓 Gemini 與 ChatGPT 一起幫您分析..." class="w-full bg-[#f6f8f5] border border-[#b8c5b9] rounded-xl p-3 text-sm sm:text-base text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#52685e]"></textarea>
+
+            <!-- 檔案上傳區 -->
+            <div class="mt-2.5">
+                <div class="flex flex-wrap items-center gap-2">
+                    <label class="cursor-pointer inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-[#f6f8f5] hover:bg-[#dce4db] text-stone-700 border border-[#b8c5b9] transition font-medium shadow-2xs">
+                        <span>📎 上傳圖片 / 檔案分析</span>
+                        <input type="file" id="topicFileInput" multiple accept="image/*,.pdf,.txt,.csv,.json,.md,.html,.js,.py" class="hidden" onchange="handleFileSelect(event, 'initial')">
+                    </label>
+                    <span class="text-[11px] text-stone-500">支援圖片 (JPG/PNG/WebP)、PDF、TXT、CSV、程式碼等</span>
+                </div>
+                <!-- 預覽縮圖列 -->
+                <div id="initialAttachmentPreview" class="flex flex-wrap gap-2 mt-2 empty:hidden"></div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2.5 border-t border-[#c2ccc0]/70">
+                <span id="costIndicator" class="text-xs px-2.5 py-1 rounded-lg bg-[#f6f8f5] text-[#2e5248] border border-[#b8c5b9] font-medium">
+                    💰 當前配置：高 CP 值省錢模式
+                </span>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button id="stopBtn" onclick="stopDebate()" class="hidden px-4 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-sm font-bold transition">
+                        ⏹ 停止
+                    </button>
+                    <button id="startBtn" onclick="startDebate(false)" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#446258] to-[#556e62] hover:opacity-95 text-white text-sm sm:text-base font-bold shadow-sm transition">
+                        🚀 開始雙模型討論
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 對話與總結顯示區 -->
+        <section class="flex-1 flex flex-col gap-3">
+            <!-- 狀態進度條 -->
+            <div id="progressHeader" class="hidden morandi-card rounded-xl px-4 py-2.5 items-center justify-between sticky top-[58px] z-20 shadow-xs">
+                <div class="flex items-center gap-2">
+                    <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-[#8c6d3f] pulse-fast"></span>
+                    <span id="progressText" class="text-xs sm:text-sm text-stone-800 font-medium">準備中...</span>
+                </div>
+                <span id="progressStepBadge" class="text-xs font-mono px-2 py-0.5 rounded bg-[#d4dad3] text-stone-800 font-bold">1 / 4</span>
+            </div>
+
+            <!-- 預設引導畫面 -->
+            <div id="emptyState" class="morandi-card border-dashed rounded-2xl p-6 text-center my-2 shadow-2xs">
+                <div class="text-2xl mb-2">🌿 🤝 ✨</div>
+                <h3 class="font-bold text-stone-900 text-sm sm:text-base mb-1">準備好觀看 Gemini 與 ChatGPT 的討論了嗎？</h3>
+                <p class="text-xs text-stone-600 max-w-md mx-auto mb-4">
+                    可上傳圖片、截圖或數據檔案，並可在討論總結後**無限追問下去**！點擊下方任一熱門議題即可測試：
+                </p>
+                <div class="flex flex-wrap justify-center gap-2">
+                    <button onclick="useQuickPrompt('我想在半年內培養一個能賺錢的技能，該學「AI 自動化工作流」還是「短影音企劃剪輯」？')" class="text-xs bg-[#d8dfd6] hover:bg-[#cbd3c9] text-stone-800 px-3 py-1.5 rounded-full border border-[#b8c5b9] transition font-medium">
+                        💼 學 AI 自動化 vs 短影音？
+                    </button>
+                    <button onclick="useQuickPrompt('買房自住背 30 年房貸，還是租房把資金全部買台股/美股 ETF？請針對台灣現況討論。')" class="text-xs bg-[#d8dfd6] hover:bg-[#cbd3c9] text-stone-800 px-3 py-1.5 rounded-full border border-[#b8c5b9] transition font-medium">
+                        🏠 買房背房貸 vs 租房買 ETF？
+                    </button>
+                    <button onclick="useQuickPrompt('每天工作很累，晚餐預算 200 元內，怎樣吃才能同時兼顧「減脂健康」又有「撫慰心靈的爽感」？')" class="text-xs bg-[#d8dfd6] hover:bg-[#cbd3c9] text-stone-800 px-3 py-1.5 rounded-full border border-[#b8c5b9] transition font-medium">
+                        🍱 200元減脂又有爽感的晚餐？
+                    </button>
+                </div>
+            </div>
+
+            <!-- 對話串流區 -->
+            <div id="chatStream" class="space-y-4"></div>
+
+            <!-- 最終總結容器 -->
+            <div id="summaryContainer" class="hidden space-y-4"></div>
+
+            <!-- 同話題無限追問區 -->
+            <div id="followUpBox" class="hidden fade-in morandi-card border-2 border-[#8ba295] rounded-2xl p-4 shadow-md mt-2">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-[#2d463e]">🙋‍♂️ 聽完結論還有疑問？在同個話題底下繼續追問：</span>
+                    </div>
+                    <span class="text-[11px] px-2 py-0.5 rounded bg-[#c5d6cc] text-[#223831] font-medium">記憶上下文延續中</span>
+                </div>
+
+                <textarea id="followUpInput" rows="2" placeholder="針對上面的結論繼續追問，例如：如果我的預算只有一半呢？或者補充上傳一張新圖片讓他們繼續分析..." class="w-full bg-[#f6f8f5] border border-[#b8c5b9] rounded-xl p-3 text-sm sm:text-base text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#52685e]"></textarea>
+
+                <!-- 追問區檔案上傳 -->
+                <div class="mt-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <label class="cursor-pointer inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-[#f6f8f5] hover:bg-[#dce4db] text-stone-700 border border-[#b8c5b9] transition font-medium shadow-2xs">
+                            <span>📎 補充上傳圖片 / 檔案</span>
+                            <input type="file" id="followUpFileInput" multiple accept="image/*,.pdf,.txt,.csv,.json,.md,.html,.js,.py" class="hidden" onchange="handleFileSelect(event, 'followup')">
+                        </label>
+
+                        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                            <button onclick="resetAllSession()" class="px-3 py-2 rounded-xl bg-[#f6f8f5] hover:bg-stone-200 text-stone-700 text-xs sm:text-sm border border-[#b8c5b9] font-medium transition">
+                                🗑️ 開新話題
+                            </button>
+                            <button onclick="startDebate(true)" class="flex-1 sm:flex-initial px-5 py-2 rounded-xl bg-[#446258] hover:bg-[#375249] text-white text-sm font-bold shadow-sm transition">
+                                💬 送出追問，讓雙模型繼續討論
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 追問已選檔案預覽 -->
+                    <div id="followUpAttachmentPreview" class="flex flex-wrap gap-2 mt-2 empty:hidden"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- API 金鑰設定彈窗 -->
+    <div id="apiModal" class="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
+        <div class="bg-[#eef1ed] border border-[#b8c5b9] rounded-2xl max-w-md w-full p-5 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-[#c8d2c7] pb-2.5">
+                <h3 class="font-bold text-base text-stone-900">🔑 API 金鑰設定 (選填)</h3>
+                <button onclick="toggleApiModal()" class="text-stone-400 hover:text-stone-700 text-lg px-2">✕</button>
+            </div>
+
+            <div class="bg-[#dcdfd9] border border-[#b8c5b9] rounded-xl p-3 text-xs text-[#2c3e37] leading-relaxed">
+                💡 <strong>免填也能用：</strong> 若您留空不填，系統會自動透過內建智慧通道完成 Gemini 與 ChatGPT 的雙模型角色討論。若填入您自己的 API Key，則會直接連線至官方指定模型！
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-[#1f3a5f] mb-1">Google Gemini API Key</label>
+                    <input id="userGeminiKey" type="password" placeholder="AIzaSy... (可留空)" class="w-full bg-[#f6f8f5] border border-[#b8c5b9] rounded-lg px-3 py-2 text-sm text-stone-900 focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#234232] mb-1">OpenAI ChatGPT API Key</label>
+                    <input id="userOpenaiKey" type="password" placeholder="sk-... (可留空)" class="w-full bg-[#f6f8f5] border border-[#b8c5b9] rounded-lg px-3 py-2 text-sm text-stone-900 focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-[#c8d2c7]">
+                <button onclick="toggleApiModal()" class="px-4 py-2 rounded-lg bg-[#d8dfd6] text-xs text-stone-700 font-medium">取消</button>
+                <button onclick="saveApiKeys()" class="px-4 py-2 rounded-lg bg-[#446258] hover:bg-[#375249] text-xs font-bold text-white shadow-sm">儲存設定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 浮動通知 Toast -->
+    <div id="toastBox" class="fixed bottom-4 right-4 z-50 hidden bg-[#36423c] text-white px-4 py-2.5 rounded-xl shadow-xl text-xs sm:text-sm font-medium">
+        <span id="toastMessage">提示訊息</span>
+    </div>
+
+    <script>
+        // ==========================================
+        // 狀態變數與資料管理
+        // ==========================================
+        let state = {
+            geminiApiKey: "",
+            openaiApiKey: "",
+            isDebating: false,
+            abortController: null,
+            globalSessionHistory: [],
+            currentRoundNumber: 0,
+            initialAttachments: [],
+            followUpAttachments: [],
+            savedHistories: []
+        };
+
+        const envApiKey = "";
+        const sampleQuestions = [
+            "手上有 50 萬台幣，在 2026 年該全部買市值型 ETF，還是拿 20 萬出來嘗試一人 AI 副業創業？",
+            "如果每天只有 40 分鐘運動，目標是降體脂跟維持白天工作精神，該選『重訓』還是『超慢跑』？",
+            "想買一台筆電用四年，主要文書、開很多分頁跟偶爾剪片，該買 MacBook Air 還是 Windows 筆電？",
+            "小孩目前國小，未來 AI 時代，預算有限下應該優先讓他學『英文口說』、『寫程式』還是『運動與社交』？"
+        ];
+
+        window.onload = function() {
+            updateModelBadges();
+            loadHistoriesFromStorage();
+        };
+
+        function showToast(msg) {
+            const box = document.getElementById('toastBox');
+            document.getElementById('toastMessage').textContent = msg;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 3200);
+        }
+
+        // ==========================================
+        // 檔案與圖片上傳處理
+        // ==========================================
+        async function handleFileSelect(event, targetType) {
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+            const targetList = targetType === 'initial' ? state.initialAttachments : state.followUpAttachments;
+
+            for (const file of files) {
+                if (file.size > 12 * 1024 * 1024) {
+                    showToast(`⚠️ 檔案 ${file.name} 超過 12MB 限制，已略過`);
+                    continue;
+                }
+                try {
+                    const parsed = await parseFile(file);
+                    targetList.push(parsed);
+                } catch (err) {
+                    showToast(`❌ 讀取檔案 ${file.name} 失敗`);
+                }
+            }
+            event.target.value = '';
+            renderAttachmentPreviews(targetType);
+            showToast(`📎 已加入 ${files.length} 個附件`);
+        }
+
+        function parseFile(file) {
+            return new Promise((resolve, reject) => {
+                const mime = file.type || 'application/octet-stream';
+                const isImg = mime.startsWith('image/');
+                const isPdf = mime === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+                if (isImg || isPdf) {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const dataUrl = reader.result;
+                        resolve({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(1) + ' KB',
+                            mimeType: isPdf ? 'application/pdf' : mime,
+                            isImage: isImg,
+                            isBinary: true,
+                            base64Data: dataUrl.split(',')[1],
+                            previewUrl: isImg ? dataUrl : null,
+                            textContent: null
+                        });
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                } else {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        resolve({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(1) + ' KB',
+                            mimeType: 'text/plain',
+                            isImage: false,
+                            isBinary: false,
+                            base64Data: null,
+                            previewUrl: null,
+                            textContent: reader.result
+                        });
+                    };
+                    reader.onerror = reject;
+                    reader.readAsText(file);
+                }
+            });
+        }
+
+        function renderAttachmentPreviews(targetType) {
+            const containerId = targetType === 'initial' ? 'initialAttachmentPreview' : 'followUpAttachmentPreview';
+            const list = targetType === 'initial' ? state.initialAttachments : state.followUpAttachments;
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            container.innerHTML = list.map((item, idx) => `
+                <div class="flex items-center gap-2 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs text-stone-800 shadow-2xs">
+                    ${item.isImage ? `<img src="${item.previewUrl}" class="w-8 h-8 object-cover rounded-lg border border-stone-200" alt="preview">` : `<span>📄</span>`}
+                    <div class="max-w-[150px] truncate">
+                        <div class="font-medium truncate">${item.name}</div>
+                        <div class="text-[10px] text-stone-400">${item.size}</div>
+                    </div>
+                    <button onclick="removeAttachment('${targetType}', ${idx})" class="text-stone-400 hover:text-rose-600 px-1 font-bold">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function removeAttachment(targetType, index) {
+            if (targetType === 'initial') state.initialAttachments.splice(index, 1);
+            else state.followUpAttachments.splice(index, 1);
+            renderAttachmentPreviews(targetType);
+        }
+
+        // ==========================================
+        // UI 互動與設定函數
+        // ==========================================
+        function toggleApiModal() {
+            const m = document.getElementById('apiModal');
+            m.classList.toggle('hidden');
+            m.classList.toggle('flex');
+        }
+
+        function toggleHistorySidebar() {
+            const sb = document.getElementById('historySidebar');
+            sb.classList.toggle('-translate-x-full');
+            if (!sb.classList.contains('-translate-x-full')) {
+                renderHistoryList();
+            }
+        }
+
+        function saveApiKeys() {
+            state.geminiApiKey = document.getElementById('userGeminiKey').value.trim();
+            state.openaiApiKey = document.getElementById('userOpenaiKey').value.trim();
+            const modeText = document.getElementById('apiModeText');
+            if (state.geminiApiKey && state.openaiApiKey) modeText.textContent = "雙官方 API 直連";
+            else if (state.geminiApiKey || state.openaiApiKey) modeText.textContent = "混合 API 模式";
+            else modeText.textContent = "免金鑰智慧引擎";
+            toggleApiModal();
+            showToast('✅ 金鑰設定已儲存');
+        }
+
+        function updateModelBadges() {
+            const gSel = document.getElementById('geminiModelSelect');
+            const cSel = document.getElementById('gptModelSelect');
+            const costBadge = document.getElementById('costIndicator');
+            if (gSel.value.includes('pro') || cSel.value === 'o1' || cSel.value === 'gpt-4o') {
+                costBadge.innerHTML = '🔥 當前配置：深度推理 / 旗艦模式';
+            } else {
+                costBadge.innerHTML = '💰 當前配置：高 CP 值省錢模式';
+            }
+        }
+
+        function insertRandomQuestion() {
+            document.getElementById('topicInput').value = sampleQuestions[Math.floor(Math.random() * sampleQuestions.length)];
+        }
+
+        function useQuickPrompt(text) {
+            document.getElementById('topicInput').value = text;
+            startDebate(false);
+        }
+
+        function resetAllSession() {
+            if (state.isDebating) stopDebate();
+            state.globalSessionHistory = [];
+            state.currentRoundNumber = 0;
+            state.initialAttachments = [];
+            state.followUpAttachments = [];
+            renderAttachmentPreviews('initial');
+            renderAttachmentPreviews('followup');
+            document.getElementById('topicInput').value = '';
+            document.getElementById('followUpInput').value = '';
+            document.getElementById('chatStream').innerHTML = '';
+            document.getElementById('summaryContainer').innerHTML = '';
+            document.getElementById('summaryContainer').classList.add('hidden');
+            document.getElementById('followUpBox').classList.add('hidden');
+            document.getElementById('resetAllBtn').classList.add('hidden');
+            document.getElementById('progressHeader').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+            showToast('✨ 已開啟全新話題');
+        }
+
+        // ==========================================
+        // Markdown 解析器
+        // ==========================================
+        function renderMD(text) {
+            if (!text) return '';
+            let html = text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-stone-900 font-bold">$1</strong>');
+            return html.split(/\n\n+/).map(p => `<p class="mb-2 last:mb-0 leading-relaxed">${p.replace(/\n/g, '<br>')}</p>`).join('');
+        }
+
+        // ==========================================
+        // AI API 呼叫
+        // ==========================================
+        async function callAI(role, modelName, sysPrompt, usrPrompt, activeAttachments = []) {
+            const signal = state.abortController ? state.abortController.signal : undefined;
+            let enrichedPrompt = usrPrompt;
+            const textFiles = activeAttachments.filter(a => !a.isBinary && a.textContent);
+            if (textFiles.length > 0) {
+                enrichedPrompt += `\n\n【附件檔案】：\n` + textFiles.map(f => `--- [${f.name}] ---\n${f.textContent.slice(0, 15000)}`).join('\n');
+            }
+
+            if (role === 'chatgpt' && state.openaiApiKey) {
+                const isReasoning = modelName.startsWith('o1') || modelName.startsWith('o3');
+                const imageAttachments = activeAttachments.filter(a => a.isImage);
+                let userContent = enrichedPrompt;
+                if (imageAttachments.length > 0 && !modelName.startsWith('o3-mini')) {
+                    userContent = [
+                        { type: 'text', text: enrichedPrompt },
+                        ...imageAttachments.map(img => ({ type: 'image_url', image_url: { url: `data:${img.mimeType};base64,${img.base64Data}` } }))
+                    ];
+                }
+                const messages = isReasoning
+                    ? [{ role: 'user', content: typeof userContent === 'string' ? `【設定】\n${sysPrompt}\n\n${userContent}` : userContent }]
+                    : [{ role: 'system', content: sysPrompt }, { role: 'user', content: userContent }];
+
+                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.openaiApiKey}` },
+                    body: JSON.stringify({ model: modelName, messages }),
+                    signal
+                });
+                if (!res.ok) throw new Error(`OpenAI API 錯誤 (${res.status})`);
+                const data = await res.json();
+                return data.choices?.[0]?.message?.content || '';
+            }
+
+            const activeKey = state.geminiApiKey || envApiKey;
+            const endpointModel = state.geminiApiKey ? modelName : 'gemini-3-flash-preview';
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${endpointModel}:generateContent?key=${activeKey}`;
+
+            const parts = [{ text: enrichedPrompt }];
+            for (const bf of activeAttachments.filter(a => a.isBinary && a.base64Data)) {
+                parts.push({ inlineData: { mimeType: bf.mimeType, data: bf.base64Data } });
+            }
+
+            let delay = 1000;
+            for (let i = 0; i < 3; i++) {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts }],
+                        systemInstruction: { parts: [{ text: sysPrompt }] }
+                    }),
+                    signal
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                }
+                if (i === 2) throw new Error(`連線異常 (${res.status})`);
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+        }
+
+        function stopDebate() {
+            state.isDebating = false;
+            if (state.abortController) state.abortController.abort();
+            document.getElementById('startBtn').classList.remove('hidden');
+            document.getElementById('stopBtn').classList.add('hidden');
+            document.getElementById('progressText').textContent = "討論已手動停止";
+            document.getElementById('statusDot').classList.remove('pulse-fast');
+            if (state.globalSessionHistory.length > 0) document.getElementById('followUpBox').classList.remove('hidden');
+        }
+
+        // ==========================================
+        // 主對談執行流程
+        // ==========================================
+        async function startDebate(isFollowUp = false) {
+            const inputEl = isFollowUp ? document.getElementById('followUpInput') : document.getElementById('topicInput');
+            const question = inputEl.value.trim();
+            const currentAttachments = isFollowUp ? [...state.followUpAttachments] : [...state.initialAttachments];
+
+            if (!question && currentAttachments.length === 0) {
+                showToast('⚠️ 請輸入問題或上傳圖片/檔案！');
+                inputEl.focus();
+                return;
+            }
+
+            if (state.isDebating) return;
+            state.isDebating = true;
+            state.abortController = new AbortController();
+
+            if (!isFollowUp) {
+                state.globalSessionHistory = [];
+                state.currentRoundNumber = 1;
+                document.getElementById('chatStream').innerHTML = '';
+                document.getElementById('summaryContainer').innerHTML = '';
+            } else {
+                state.currentRoundNumber += 1;
+                document.getElementById('followUpInput').value = '';
+                state.followUpAttachments = [];
+                renderAttachmentPreviews('followup');
+            }
+
+            const effectiveQuestion = question || "（請見上傳的圖片/檔案，並進行深入分析與討論）";
+            const geminiModel = document.getElementById('geminiModelSelect').value;
+            const gptModel = document.getElementById('gptModelSelect').value;
+            const totalTurns = parseInt(document.getElementById('turnSelect').value, 10);
+            const styleGuide = document.getElementById('debateStyleSelect').value;
+
+            const isGeminiDeep = geminiModel.includes('pro');
+            const isGptDeep = gptModel === 'o1' || gptModel === 'o3-mini' || gptModel === 'gpt-4o';
+
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('followUpBox').classList.add('hidden');
+            document.getElementById('summaryContainer').classList.remove('hidden');
+            document.getElementById('resetAllBtn').classList.remove('hidden');
+            document.getElementById('startBtn').classList.add('hidden');
+            document.getElementById('stopBtn').classList.remove('hidden');
+
+            const pHeader = document.getElementById('progressHeader');
+            pHeader.classList.remove('hidden');
+            pHeader.classList.add('flex');
+            document.getElementById('statusDot').classList.add('pulse-fast');
+
+            appendUserQuestionBanner(state.currentRoundNumber, effectiveQuestion, currentAttachments, isFollowUp);
+
+            const allSessionAttachments = [...state.initialAttachments, ...(isFollowUp ? currentAttachments : [])];
+            const roundTurns = [];
+
+            try {
+                const priorContextStr = state.globalSessionHistory.length === 0 ? "" : 
+                    "【先前討論背景】：\n" + state.globalSessionHistory.map(r => `第 ${r.round} 輪問題：「${r.question}」\n總結：${r.summary}`).join('\n\n') + "\n\n";
+
+                for (let turn = 1; turn <= totalTurns; turn++) {
+                    if (!state.isDebating) break;
+
+                    const isGemini = (turn % 2 === 1);
+                    const speaker = isGemini ? 'Google Gemini' : 'OpenAI ChatGPT';
+                    const model = isGemini ? geminiModel : gptModel;
+                    const isDeep = isGemini ? isGeminiDeep : isGptDeep;
+
+                    document.getElementById('progressStepBadge').textContent = `第 ${state.currentRoundNumber} 輪 • 對話 ${turn} / ${totalTurns}`;
+                    document.getElementById('progressText').textContent = `${speaker} (${model}) 正在分析中...`;
+
+                    const cardId = `round-${state.currentRoundNumber}-turn-${turn}`;
+                    createPendingBubble(cardId, isGemini, speaker, model, turn, isDeep);
+
+                    const historyStr = roundTurns.length === 0 ? "（本輪第一回合）" : roundTurns.map(h => `【${h.speaker}】：\n${h.text}`).join('\n\n');
+
+                    const sysPrompt = isGemini
+                        ? `你是 Google Gemini (${model})。與 ChatGPT (${gptModel}) 進行 ${totalTurns} 回合對談。風格：${styleGuide}。繁體中文，150~240字，直接切入重點。`
+                        : `你是 OpenAI ChatGPT (${model})。與 Gemini (${geminiModel}) 進行 ${totalTurns} 回合對談。風格：${styleGuide}。繁體中文，150~240字，直接切入重點。`;
+
+                    const usrPrompt = `${priorContextStr}【使用者提問】：${effectiveQuestion}\n\n【目前對話】：\n${historyStr}\n\n現在是第 ${turn}/${totalTurns} 回合，請發表你的分析：`;
+
+                    const reply = await callAI(isGemini ? 'gemini' : 'chatgpt', model, sysPrompt, usrPrompt, allSessionAttachments);
+                    if (!state.isDebating) break;
+
+                    fillBubbleContent(cardId, isGemini, speaker, model, turn, reply, isDeep);
+                    roundTurns.push({ turn, speaker, model, text: reply });
+                }
+
+                if (state.isDebating && roundTurns.length === totalTurns) {
+                    document.getElementById('progressStepBadge').textContent = `第 ${state.currentRoundNumber} 輪 • 總結`;
+                    document.getElementById('progressText').textContent = "正在彙整雙方觀點，撰寫本輪總結報告...";
+
+                    const summaryCardId = `summary-round-${state.currentRoundNumber}`;
+                    appendSummaryPlaceholder(summaryCardId);
+
+                    const allHistory = roundTurns.map(h => `【${h.speaker} (${h.model})】：\n${h.text}`).join('\n\n');
+                    const sumSys = `你是圓桌會議主持人。請根據 Gemini (${geminiModel}) 與 ChatGPT (${gptModel}) 的對談產出【最終總結報告】。包含：1. 共識 2. 互補亮點 3. 具體建議。繁體中文。`;
+                    const sumUsr = `${priorContextStr}【問題】：${effectiveQuestion}\n\n【對談紀錄】：\n${allHistory}\n\n請給出總結：`;
+
+                    const summaryReply = await callAI('moderator', geminiModel, sumSys, sumUsr, allSessionAttachments);
+
+                    if (state.isDebating) {
+                        fillSummaryCard(summaryCardId, summaryReply, geminiModel, gptModel, totalTurns, state.currentRoundNumber);
+                        state.globalSessionHistory.push({
+                            round: state.currentRoundNumber,
+                            question: effectiveQuestion,
+                            turns: roundTurns,
+                            summary: summaryReply
+                        });
+
+                        autoSaveHistory(effectiveQuestion, summaryReply);
+
+                        document.getElementById('progressText').textContent = `✨ 第 ${state.currentRoundNumber} 輪討論與總結已完成！`;
+                        document.getElementById('statusDot').classList.remove('pulse-fast');
+                        document.getElementById('followUpBox').classList.remove('hidden');
+                        document.getElementById('followUpBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    showToast(`❌ 發生錯誤：${err.message}`);
+                    document.getElementById('progressText').textContent = "連線中斷";
+                }
+            } finally {
+                state.isDebating = false;
+                document.getElementById('startBtn').classList.remove('hidden');
+                document.getElementById('stopBtn').classList.add('hidden');
+                document.getElementById('statusDot').classList.remove('pulse-fast');
+                if (state.globalSessionHistory.length > 0) document.getElementById('followUpBox').classList.remove('hidden');
+            }
+        }
+
+        // ==========================================
+        // 渲染對話與總結卡片
+        // ==========================================
+        function appendUserQuestionBanner(roundNum, questionText, attachments, isFollowUp) {
+            const list = document.getElementById('chatStream');
+            const div = document.createElement('div');
+            div.className = "fade-in morandi-card rounded-2xl p-4 shadow-xs";
+
+            const attachHtml = attachments.length > 0
+                ? `<div class="flex flex-wrap gap-2 mt-3 pt-2.5 border-t border-[#b3c5bc]/50">
+                    ${attachments.map(att => att.isImage
+                        ? `<div class="flex items-center gap-2 bg-[#f6f8f5] border border-[#b3c5bc] rounded-xl p-1.5 pr-3">
+                            <img src="${att.previewUrl}" class="w-12 h-12 object-cover rounded-lg" alt="img">
+                            <span class="text-xs text-stone-800 max-w-[160px] truncate">${att.name}</span>
+                           </div>`
+                        : `<div class="flex items-center gap-1.5 bg-[#f6f8f5] border border-[#b3c5bc] rounded-xl px-3 py-1.5 text-xs text-[#2c4038]">
+                            <span>📄 ${att.name}</span>
+                            <span class="text-stone-500">(${att.size})</span>
+                           </div>`
+                    ).join('')}
+                   </div>`
+                : '';
+
+            div.innerHTML = `
+                <div class="flex items-center justify-between text-xs text-[#2e4d43] mb-1.5 font-bold">
+                    <span>${isFollowUp ? `🙋‍♂️ 您的第 ${roundNum} 輪追問` : `💬 您的初始提問`}</span>
+                    <span class="font-mono bg-[#c3d3cb] px-2 py-0.5 rounded text-[#1c3029]">Round #${roundNum}</span>
+                </div>
+                <div class="text-sm sm:text-base font-medium text-stone-900 leading-relaxed">${renderMD(questionText)}</div>
+                ${attachHtml}
+            `;
+            list.appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function createPendingBubble(id, isGemini, speaker, model, turn, isDeep) {
+            const list = document.getElementById('chatStream');
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = `fade-in flex flex-col ${isGemini ? 'items-start' : 'items-end'}`;
+
+            const borderCls = isGemini ? 'border-[#a8bcd4] bg-[#e6edf4]' : 'border-[#a6c7b7] bg-[#e4f0ea]';
+
+            div.innerHTML = `
+                <div class="w-full sm:w-[92%] rounded-2xl border-2 p-4 shadow-xs ${borderCls}">
+                    <div class="flex items-center justify-between text-xs text-stone-600 mb-2 pb-2 border-b border-stone-200">
+                        <span class="font-bold text-stone-900">${speaker} <span class="font-mono text-stone-600">(${model})</span></span>
+                        <span>第 ${turn} 回合</span>
+                    </div>
+                    <div class="text-sm text-stone-600 pulse-fast py-2">
+                        ⏳ ${isDeep ? '正在深度推理與思維鏈分析中...' : '正在快速組織觀點...'}
+                    </div>
+                </div>
+            `;
+            list.appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function fillBubbleContent(id, isGemini, speaker, model, turn, text, isDeep) {
+            const div = document.getElementById(id);
+            if (!div) return;
+
+            const cardCls = isGemini
+                ? 'border-2 border-[#7ea3d1] bg-gradient-to-br from-[#f8fafc] via-[#f8fafc] to-[#e4edf7]'
+                : 'border-2 border-[#6fc49e] bg-gradient-to-br from-[#f8fafc] via-[#f8fafc] to-[#e0f2eb]';
+            
+            const badgeBg = isGemini ? 'bg-[#cce0f5] text-[#16375c]' : 'bg-[#c5eade] text-[#13422e]';
+            const icon = isGemini ? '✨' : '⚡';
+            const modeTag = isDeep ? '<span class="text-[10px] px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-bold border border-purple-300">🧠 深度思考</span>' : '<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold border border-amber-300">⚡ 高 CP 值</span>';
+            const fontStyleClass = isGemini ? 'gemini-bubble-text' : 'gpt-bubble-text';
+
+            div.innerHTML = `
+                <div class="w-full sm:w-[92%] rounded-2xl p-4 shadow-sm ${cardCls}">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5 pb-2 border-b border-stone-200">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-lg ${badgeBg}">${icon} ${speaker}</span>
+                            <span class="text-xs px-2 py-0.5 rounded bg-[#eef1ed] text-stone-800 font-mono border border-stone-300">${model}</span>
+                            ${modeTag}
+                        </div>
+                        <span class="text-xs font-mono text-stone-600 bg-[#f6f8f5] px-2 py-0.5 rounded border border-stone-300">對話 #${turn}</span>
+                    </div>
+                    <div class="text-sm sm:text-base leading-relaxed ${fontStyleClass}">
+                        ${renderMD(text)}
+                    </div>
+                </div>
+            `;
+            div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function appendSummaryPlaceholder(cardId) {
+            const container = document.getElementById('summaryContainer');
+            const div = document.createElement('div');
+            div.id = cardId;
+            div.className = "fade-in bg-[#f4ebd0] border-2 border-[#dfc39e] rounded-2xl p-5 text-[#634819] text-sm pulse-fast font-medium shadow-xs";
+            div.innerHTML = `⏳ 正在彙整 Gemini 與 ChatGPT 的共識與分歧，產出本輪總結報告並標註重點...`;
+            container.appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function fillSummaryCard(cardId, text, gModel, cModel, turns, roundNum) {
+            const div = document.getElementById(cardId);
+            if (!div) return;
+            const contentId = `summary-content-${roundNum}`;
+
+            let processedText = text;
+            processedText = processedText.replace(/\*\*(.*?)\*\*/g, '<span class="summary-highlight">$1</span>');
+            processedText = processedText.replace(/【(.*?)】/g, '<span class="summary-fluorescent">【$1】</span>');
+
+            div.className = "fade-in bg-gradient-to-br from-[#fbf8f2] via-[#f3ebe0] to-[#eadfcb] border-2 border-[#cca982] rounded-2xl p-5 shadow-md";
+            div.innerHTML = `
+                <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-stone-300">
+                    <div>
+                        <h3 class="font-bold text-base sm:text-lg text-[#614115]">🏆 第 ${roundNum} 輪圓桌總結與決策建議 (重點已自動標註)</h3>
+                        <p class="text-xs text-stone-600">綜合 ${gModel} 與 ${cModel} 共 ${turns} 回合對談結論</p>
+                    </div>
+                    <button onclick="copySummaryById('${contentId}')" class="text-xs px-3 py-1.5 rounded-lg bg-[#f9f7f4] hover:bg-[#e7e3dc] text-stone-800 border border-stone-300 transition font-medium shadow-2xs">
+                        📋 複製此輪總結
+                    </button>
+                </div>
+                <div id="${contentId}" class="text-sm sm:text-base text-stone-900 leading-relaxed space-y-2">
+                    ${renderMDSummary(processedText)}
+                </div>
+            `;
+            div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function renderMDSummary(text) {
+            if (!text) return '';
+            let safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            safe = safe.replace(/&lt;span class="summary-highlight"&gt;(.*?)&lt;\/span&gt;/g, '<span class="summary-highlight">$1</span>');
+            safe = safe.replace(/&lt;span class="summary-fluorescent"&gt;(.*?)&lt;\/span&gt;/g, '<span class="summary-fluorescent">$1</span>');
+            return safe.split(/\n\n+/).map(p => `<p class="mb-2 last:mb-0 leading-relaxed">${p.replace(/\n/g, '<br>')}</p>`).join('');
+        }
+
+        function copySummaryById(elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const ta = document.createElement('textarea');
+            ta.value = el.innerText;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast('✅ 已複製總結內容！');
+        }
+
+        // ==========================================
+        // 歷史對話紀錄系統
+        // ==========================================
+        function loadHistoriesFromStorage() {
+            try {
+                const saved = localStorage.getItem('ai_debate_histories');
+                if (saved) state.savedHistories = JSON.parse(saved);
+            } catch (e) { state.savedHistories = []; }
+        }
+
+        function saveHistoriesToStorage() {
+            try {
+                localStorage.setItem('ai_debate_histories', JSON.stringify(state.savedHistories));
+            } catch (e) {}
+        }
+
+        function autoSaveHistory(question, summary) {
+            const title = question.length > 28 ? question.slice(0, 28) + '...' : question;
+            const existingIdx = state.savedHistories.findIndex(h => h.fullQuestion === state.globalSessionHistory[0]?.question || h.fullQuestion === question);
+            
+            const newItem = {
+                id: existingIdx >= 0 ? state.savedHistories[existingIdx].id : 'hist-' + Date.now(),
+                title: existingIdx >= 0 ? state.savedHistories[existingIdx].title : title,
+                fullQuestion: state.globalSessionHistory[0]?.question || question,
+                summary: summary,
+                timestamp: new Date().toLocaleString(),
+                sessionHistory: JSON.parse(JSON.stringify(state.globalSessionHistory))
+            };
+
+            if (existingIdx >= 0) state.savedHistories.splice(existingIdx, 1);
+            state.savedHistories.unshift(newItem);
+            if (state.savedHistories.length > 20) state.savedHistories.pop();
+            saveHistoriesToStorage();
+        }
+
+        function renderHistoryList() {
+            const container = document.getElementById('historyListContainer');
+            if (!state.savedHistories.length) {
+                container.innerHTML = `<div class="text-center text-stone-500 text-xs py-8">尚無歷史對話紀錄</div>`;
+                return;
+            }
+
+            container.innerHTML = state.savedHistories.map((item) => `
+                <div class="bg-[#f4f6f4] border border-[#c2ccc0] rounded-xl p-3 hover:border-[#52685e] transition-all cursor-pointer group">
+                    <div onclick="loadHistoryItem('${item.id}')" class="font-bold text-xs sm:text-sm text-stone-900 mb-1 line-clamp-1">${item.title}</div>
+                    <div onclick="loadHistoryItem('${item.id}')" class="text-[11px] text-stone-600 line-clamp-2 mb-2">${item.summary.replace(/<[^>]*>?/gm, '')}</div>
+                    <div class="flex items-center justify-between text-[10px] text-stone-500 pt-1.5 border-t border-[#c2ccc0]/60">
+                        <span>${item.timestamp}</span>
+                        <button onclick="deleteHistoryItem(event, '${item.id}')" class="text-rose-700 hover:underline">刪除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadHistoryItem(id) {
+            const item = state.savedHistories.find(h => h.id === id);
+            if (!item) return;
+
+            state.globalSessionHistory = JSON.parse(JSON.stringify(item.sessionHistory));
+            state.currentRoundNumber = state.globalSessionHistory.length;
+
+            const stream = document.getElementById('chatStream');
+            const sumContainer = document.getElementById('summaryContainer');
+            stream.innerHTML = '';
+            sumContainer.innerHTML = '';
+            document.getElementById('emptyState').classList.add('hidden');
+            sumContainer.classList.remove('hidden');
+            document.getElementById('resetAllBtn').classList.remove('hidden');
+
+            state.globalSessionHistory.forEach(sess => {
+                appendUserQuestionBanner(sess.round, sess.question, [], false);
+                sess.turns.forEach(t => {
+                    const bId = `hist-load-${sess.round}-${t.turn}`;
+                    createPendingBubble(bId, t.speaker.includes('Gemini'), t.speaker, t.model, t.turn, false);
+                    fillBubbleContent(bId, t.speaker.includes('Gemini'), t.speaker, t.model, t.turn, t.text, false);
+                });
+                const sId = `hist-sum-${sess.round}`;
+                appendSummaryPlaceholder(sId);
+                fillSummaryCard(sId, sess.summary, 'Gemini', 'ChatGPT', sess.turns.length, sess.round);
+            });
+
+            document.getElementById('followUpBox').classList.remove('hidden');
+            toggleHistorySidebar();
+            showToast(`已載入歷史對話：${item.title}`);
+        }
+
+        function deleteHistoryItem(e, id) {
+            e.stopPropagation();
+            state.savedHistories = state.savedHistories.filter(h => h.id !== id);
+            saveHistoriesToStorage();
+            renderHistoryList();
+            showToast('已刪除紀錄');
+        }
+
+        function clearAllHistory() {
+            state.savedHistories = [];
+            saveHistoriesToStorage();
+            renderHistoryList();
+            showToast('已清空歷史紀錄');
+        }
+    </script>
+</body>
+</html>
